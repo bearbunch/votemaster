@@ -256,3 +256,8 @@ function renderPastOptionsInDrop(){
   const sel=document.getElementById('optionDrop'); if(!sel) return;
   if(sel.options.length<=1) ['Option A','Option B','Option C'].forEach(o=>{ const opt=document.createElement('option'); opt.text=o; sel.add(opt); });
 }
+fetch("footer.html")
+  .then(response => response.text())
+  .then(data => {
+    document.getElementById("footer").innerHTML = data;
+});
