@@ -10,22 +10,23 @@
     </script>
   </head>
   <body>
-  <div id="footer"></div>
-    <script>
-    fetch("footer.html")
-      .then(response => response.text())
-      .then(data => {
-        document.getElementById("footer").innerHTML = data;
-      });
-    </script>
+  
+   
     <div class="app">
     <div class="card header">
     <div>
     <div class="title" id="viewTitle">Sorry we are still makeing this website please bear with us  :)</div>
     <h4>Our website will go live on the 14th of december between 6pm and 8pm. If you want you can visit our
     <a href="https://pokerface.w3spaces.com/bearbunch/Index.html" target="_blank">website</a>
+    <div id="footer"></div>
+      <script>
+      fetch("footer.html")
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById("footer").innerHTML = data;
+        });
+      </script>
   </body>
-
 </html>
 
 
