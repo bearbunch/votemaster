@@ -1,9 +1,4 @@
 /* =========================== FROSTED GLASS UI (compact) =========================== */
-body {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 :root{
   --bg1:#8ec5fc;
   --bg2:#e0c3fc;
@@ -16,6 +11,10 @@ body {
   --glass:0 10px 30px rgba(0,0,0,0.12);
   --form-bg: rgba(255,255,255,0.85);
 }
+.full-height {
+  height: calc(var(--vh, 1vh) * 100);
+}
+
 html[data-theme="dark"]{
   --bg1:#1e1e2f;
   --bg2:#2c2c45;

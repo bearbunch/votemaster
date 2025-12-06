@@ -3,6 +3,18 @@
    =========================== */
 function go(path){ location.href = path; }
 
+function setVh() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+// Initial calculation
+setVh();
+
+// Recalculate on resize/orientation change
+window.addEventListener('resize', setVh);
+
+
 function toggleTheme(){
   const html = document.documentElement;
   const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
