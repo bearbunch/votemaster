@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Full Height Mobile Fix</title>
+  <style>
+    /* Apply full height using the CSS variable */
+    .full-height {
+      height: calc(var(--vh, 1vh) * 100);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #4f46e5;
+      color: white;
+      font-size: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="full-height">
+    This fills the viewport perfectly!
+  </div>
+
+  <script>
+    // Function to update the --vh variable
+    function setVh() {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+
+    // Initial calculation
+    setVh();
+
+    // Recalculate on resize/orientation change
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', setVh);
+  </script>
+</body>
+</html>
