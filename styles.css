@@ -1,4 +1,9 @@
 /* =========================== FROSTED GLASS UI (compact) =========================== */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 :root{
   --bg1:#8ec5fc;
   --bg2:#e0c3fc;
@@ -162,3 +167,4 @@ select.extra option {
     align-items:stretch;
   }
 }
+
