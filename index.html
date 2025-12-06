@@ -10,7 +10,14 @@
     </script>
   </head>
   <body>
-
+  <div id="footer"></div>
+    <script>
+    fetch("footer.html")
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById("footer").innerHTML = data;
+      });
+    </script>
     <div class="app">
     <div class="card header">
     <div>
@@ -20,6 +27,7 @@
   </body>
 
 </html>
+
 
 
 
