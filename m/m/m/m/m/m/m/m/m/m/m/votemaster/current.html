@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="app">
+
     <!-- Header -->
     <div class="card header">
       <div>
@@ -22,15 +23,101 @@
     <!-- Vote Card -->
     <div id="currentCard" class="card"></div>
 
+    <!-- Share link button -->
+    <div class="card">
+      <div class="row">
+        <button class="btn btn-primary" onclick="showShareLink()">Get Vote Link</button>
+      </div>
+    </div>
+
     <!-- Navigation -->
     <div class="card">
       <div class="row">
         <button class="btn btn-ghost" onclick="go('index.html')">Home</button>
       </div>
     </div>
+
+  </div>
+
+  <!-- Share Link Popup -->
+  <div id="sharePopup" 
+       style="
+         display:none;
+         position: fixed;
+         top: 50%; left: 50%;
+         transform: translate(-50%, -50%);
+         z-index: 999;
+       ">
+    <div style="
+        background: var(--card-bg, #fff);
+        color: var(--text-color, #000);
+        padding: 20px;
+        width: 300px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        text-align: center;
+      ">
+      <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Share Vote Link</div>
+      <textarea id="shareLinkBox"
+                style="width: 100%; height: 90px; padding: 10px; border-radius: 8px; resize: none;"></textarea>
+      <br><br>
+      <button class="btn btn-primary" onclick="copyShareLink()">Copy</button>
+      <button class="btn btn-ghost" onclick="closeSharePopup()">Close</button>
+    </div>
   </div>
 
   <script src="script.js"></script>
+
+  <script>
+    /* ========== SHARE LINK POPUP ========== */
+
+    function showShareLink() {
+      const vote = JSON.parse(localStorage.getItem("currentVote") || "{}");
+
+      const encoded = encodeURIComponent(btoa(JSON.stringify(vote)));
+
+      const link = location.origin + location.pathname +
+                   "?data=" + encoded;
+
+      document.getElementById("shareLinkBox").value = link;
+      document.getElementById("sharePopup").style.display = "block";
+    }
+
+    function closeSharePopup() {
+      document.getElementById("sharePopup").style.display = "none";
+    }
+
+    function copyShareLink() {
+      const box = document.getElementById("shareLinkBox");
+      box.select();
+      box.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(box.value);
+    }
+
+    /* ========== IMPORT VOTE FROM LINK ========== */
+
+    function importVoteFromURL() {
+      const params = new URLSearchParams(location.search);
+      if (!params.has("data")) return;
+
+      try {
+        const decoded = JSON.parse(atob(decodeURIComponent(params.get("data"))));
+        localStorage.setItem("currentVote", JSON.stringify(decoded));
+      } catch (err) {
+        console.error("Failed to import vote:", err);
+      }
+    }
+
+    // Run importer before rendering page
+    importVoteFromURL();
+
+    // Render after import
+    document.addEventListener("DOMContentLoaded", () => {
+      if (document.getElementById("currentCard")) {
+        renderCurrentPage();
+      }
+    });
+  </script>
+
 </body>
 </html>
-
