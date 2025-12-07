@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vote Master — Settings</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -11,20 +11,15 @@
     <div class="card header">
       <div>
         <div class="title">Settings</div>
-        <div class="subtitle">Configure your preferences</div>
+        <div class="subtitle">Configure app behavior</div>
       </div>
       <button class="theme-toggle" onclick="toggleTheme()">💡</button>
     </div>
 
     <div class="card">
-      <label>
-        <input type="checkbox" id="autoCSV">
-        Auto download CSV when vote ends
-      </label>
-      <label>
-        <input type="checkbox" id="dontSaveVotes">
-        Don’t save votes
-      </label>
+      <label><input type="checkbox" id="autoCSV"> Auto download CSV when vote ends</label>
+      <label><input type="checkbox" id="dontSaveVotes"> Don’t save votes</label>
+
       <div class="row" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="saveSettings()">Save</button>
         <button class="btn btn-ghost" onclick="go('index.html')">Back</button>
@@ -32,14 +27,20 @@
     </div>
   </div>
 
+  <!-- Custom Alert Popup -->
   <div id="customAlert" 
-       style="display:none;position: fixed;top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999;">
-    <div style="background: var(--card-bg, #fff); color: var(--text-color, #000); padding: 20px; width: 280px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); text-align: center;">
+       style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999;">
+    <div style="background: var(--card-bg,#fff); color: var(--text-color,#000); padding:20px; width:280px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.25); text-align:center;">
       <div id="alertMessage" style="font-size:14px; margin-bottom:18px;"></div>
       <button class="btn btn-primary" onclick="closeAlert()">OK</button>
     </div>
   </div>
 
+  <!-- Load the main scripts.js which contains saveSettings() -->
   <script src="scripts.js"></script>
+  <script>
+    // Load settings into checkboxes after scripts.js has loaded
+    document.addEventListener('DOMContentLoaded', loadSettings);
+  </script>
 </body>
 </html>
