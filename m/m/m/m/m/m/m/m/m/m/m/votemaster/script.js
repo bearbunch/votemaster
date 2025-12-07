@@ -13,14 +13,11 @@ if(localStorage.getItem('v_theme'))
 
 const KEY_CURRENT = 'vapp_current';
 const KEY_HISTORY = 'vapp_history';
-const KEY_SETTINGS = 'vapp_settings';
 
 function loadCurrent(){ try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); } catch(e){ return null; } }
 function saveCurrent(obj){ if(obj) localStorage.setItem(KEY_CURRENT, JSON.stringify(obj)); else localStorage.removeItem(KEY_CURRENT); }
 function loadHistory(){ try { return JSON.parse(localStorage.getItem(KEY_HISTORY) || '[]'); } catch(e){ return []; } }
 function saveHistory(arr){ localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)); }
-function loadSettings(){ try { return JSON.parse(localStorage.getItem(KEY_SETTINGS)||'{}'); } catch(e){ return {}; } }
-function saveSettings(settings){ localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings)); }
 
 /* =========================== CREATE PAGE FUNCTIONS =========================== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -218,25 +215,9 @@ function endActiveVote(){
     voteLog: current.votes
   };
 
-  const settings = loadSettings();
   const history = loadHistory();
-  const tempSave = settings.autoCSV && settings.dontSaveVotes;
-
-  if(!settings.dontSaveVotes || tempSave){
-      history.unshift(snapshot);
-      saveHistory(history);
-
-      if(settings.autoCSV && history.length){
-          setTimeout(()=>{
-              downloadCSV_index(0);
-              if(tempSave){
-                  const hist = loadHistory();
-                  hist.shift();
-                  saveHistory(hist);
-              }
-          }, 100);
-      }
-  }
+  history.unshift(snapshot);
+  saveHistory(history);
 
   saveCurrent(null);
   go('past.html');
@@ -244,46 +225,105 @@ function endActiveVote(){
 
 function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
-/* =========================== SETTINGS FUNCTIONS =========================== */
-function initSettings(){
-  let settings = loadSettings();
-  if(settings.autoCSV===undefined) settings.autoCSV=false; 
-  if(settings.dontSaveVotes===undefined) settings.dontSaveVotes=false; 
-
-  const autoCSVBox=document.getElementById('autoCSV');
-  if(autoCSVBox) autoCSVBox.checked = settings.autoCSV;
-
-  const dontSaveBox=document.getElementById('dontSaveVotes');
-  if(dontSaveBox) dontSaveBox.checked = settings.dontSaveVotes;
+/* =========================== PAST & VIEW PAGE =========================== */
+function renderPastList(){
+  const box=document.getElementById('pastList'); if(!box) return;
+  const history=loadHistory();
+  if(!history.length){ box.innerHTML='<div class="tiny">No past votes</div>'; return; }
+  box.innerHTML='';
+  history.forEach((h,idx)=>{
+    const el=document.createElement('div'); el.className='item-row';
+    el.innerHTML=`<div><div style="font-weight:700">${escapeHtml(h.title)}</div><div class="tiny">${new Date(h.ended).toLocaleString()}</div></div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn btn-ghost small" onclick="openView(${idx})">View</button>
+                    <button class="btn btn-ghost small" onclick="downloadCSV_index(${idx})">CSV</button>
+                  </div>`;
+    box.appendChild(el);
+  });
 }
 
-function saveSettingsFromPage(){
-  const autoCSVBox=document.getElementById('autoCSV');
-  const dontSaveBox=document.getElementById('dontSaveVotes');
+function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('view.html'); }
+function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
 
-  const settings = {
-    autoCSV: autoCSVBox ? autoCSVBox.checked : false,
-    dontSaveVotes: dontSaveBox ? dontSaveBox.checked : false
-  };
-
-  saveSettings(settings);
-  showCustomAlert("Settings saved!");
+function renderViewPage(){
+  const idx=Number(localStorage.getItem('v_view_idx')||-1); 
+  const history=loadHistory();
+  if(idx<0||idx>=history.length){ document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>'; return; }
+  const rec=history[idx];
+  document.getElementById('viewCard').innerHTML=`
+    <div style="font-weight:800">${escapeHtml(rec.title)}</div>
+    <div class="tiny">Ended: ${new Date(rec.ended).toLocaleString()}</div>
+    <div class="divider"></div>
+    ${rec.options.map(o=>`<div class="result-row"><div>${escapeHtml(o.label)}</div><div>${o.votes}</div></div>`).join('')}
+  `;
 }
 
-/* =========================== UTILS =========================== */
-function showCustomAlert(msg){
-  const alertMsg = document.getElementById('alertMessage');
-  const alertDiv = document.getElementById('customAlert');
-  if(alertMsg && alertDiv){
-    alertMsg.innerHTML = msg;
-    alertDiv.style.display = "flex";
-  } else {
-    alert(msg);
-  }
+/* =========================== CSV DOWNLOAD =========================== */
+function triggerDownloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
-function closeAlert(){ const alertDiv = document.getElementById('customAlert'); if(alertDiv) alertDiv.style.display="none"; }
+function downloadCSV_viewRecord() {
+  const idx = Number(localStorage.getItem('v_view_idx') || -1);
+  const history = loadHistory();
+  const rec = history[idx];
+  if (!rec) return alert("No data to export!");
 
+  let csv = "";
+  csv += `Title,"${(rec.title || "").replace(/"/g, '""')}"\n`;
+  csv += `Created,"${rec.created}"\n`;
+  csv += `Ended,"${rec.ended}"\n\n`;
+  csv += "Option,Total Votes\n";
+  rec.options.forEach(o => { csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`; });
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles || []).forEach(r => { csv += `"${(r.name || "").replace(/"/g, '""')}",${r.type},${r.uses},${r.extra}\n`; });
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog || []).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
+  });
+
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  triggerDownloadBlob(blob, filename);
+}
+
+function downloadCSV_index(idx) {
+  const history = loadHistory();
+  const rec = history[idx];
+  if (!rec) return alert("No data to export!");
+
+  let csv = "";
+  csv += `Title,"${(rec.title || "").replace(/"/g, '""')}"\n`;
+  csv += `Created,"${rec.created}"\n`;
+  csv += `Ended,"${rec.ended}"\n\n`;
+  csv += "Option,Total Votes\n";
+  rec.options.forEach(o => { csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`; });
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles || []).forEach(r => { csv += `"${(r.name || "").replace(/"/g, '""')}",${r.type},${r.uses},${r.extra}\n`; });
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog || []).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
+  });
+
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  triggerDownloadBlob(blob, filename);
+}
+
+/* =========================== UTILITIES =========================== */
 function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 /* =========================== INIT =========================== */
@@ -291,5 +331,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(document.getElementById('currentCard')) renderCurrentCard();
   if(document.getElementById('pastList')) renderPastList();
   if(document.getElementById('viewCard')) renderViewPage();
-  if(document.getElementById('autoCSV') || document.getElementById('dontSaveVotes')) initSettings();
 });
