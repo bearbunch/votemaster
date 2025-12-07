@@ -1,4 +1,4 @@
-/* ===========================
+p/* ===========================
    COMMON UTILITIES
    =========================== */
 function go(path){ location.href = path; }
@@ -348,3 +348,108 @@ function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); 
 }
 
+
+/* ===========================
+   SHARE VOTE (CURRENT PAGE)
+   =========================== */
+
+let share_lastLink = "";
+
+// Simple XOR encryption
+function xorEncrypt(text, key) {
+  return Array.from(text, (c, i) =>
+    String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length))
+  ).join('');
+}
+function xorDecrypt(text, key) { return xorEncrypt(text, key); }
+
+// Called when the "Get Vote Link" button is clicked
+function showShareLinkPopup() {
+  const current = loadCurrent();
+  if (!current) return alert("No active vote!");
+
+  // Build vote JSON → base64
+  const voteString = JSON.stringify(current);
+
+  const protect = document.getElementById("share_protect").checked;
+  const pw = document.getElementById("share_password").value.trim();
+
+  let payload = "";
+
+  if (protect) {
+    if (!pw) {
+      document.getElementById("share_link").value = "Enter password";
+      return;
+    }
+    const encrypted = xorEncrypt(voteString, pw);
+    payload = btoa(JSON.stringify({ protected: true, data: encrypted }));
+  } else {
+    payload = btoa(voteString);
+  }
+
+  const cleanURL = window.location.origin + window.location.pathname.replace("current.html", "current.html");
+  const link = cleanURL + "?data=" + encodeURIComponent(payload);
+
+  share_lastLink = link;
+  document.getElementById("share_link").value = link;
+  document.getElementById("share_popup").style.display = "block";
+}
+
+// Copy
+function share_copy() {
+  navigator.clipboard.writeText(share_lastLink);
+}
+
+// Close popup
+function share_close() {
+  document.getElementById("share_popup").style.display = "none";
+  document.getElementById("share_qr").style.display = "none";
+  document.getElementById("share_qr").innerHTML = "";
+}
+
+// QR code
+function share_showQR() {
+  const box = document.getElementById("share_qr");
+  box.style.display = "block";
+  box.innerHTML = "";
+  new QRCode(box, {
+    text: share_lastLink,
+    width: 200,
+    height: 200
+  });
+}
+
+/* ===========================
+   LOAD FROM SHARE LINK
+   =========================== */
+function importVoteFromLink() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("data")) return;
+
+  try {
+    const raw = atob(params.get("data"));
+    let decoded;
+
+    if (raw.startsWith("{") && raw.includes('"protected":')) {
+      // Protected format
+      const wrapper = JSON.parse(raw);
+      if (!wrapper.protected) return;
+
+      const pw = prompt("Enter password to unlock vote:");
+      if (!pw) return alert("Password required");
+
+      const decrypted = xorDecrypt(wrapper.data, pw);
+      decoded = JSON.parse(decrypted);
+
+    } else {
+      // Unprotected
+      decoded = JSON.parse(raw);
+    }
+
+    saveCurrent(decoded);
+
+  } catch (e) {
+    console.error(e);
+    alert("Invalid or corrupted vote link.");
+  }
+  }
