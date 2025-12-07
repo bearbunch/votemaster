@@ -1,6 +1,6 @@
 /* ===========================
    COMMON UTILITIES
-=========================== */
+   =========================== */
 function go(path){ location.href = path; }
 
 function toggleTheme(){
@@ -16,22 +16,6 @@ if(localStorage.getItem('v_theme'))
 const KEY_CURRENT = 'vapp_current';
 const KEY_HISTORY = 'vapp_history';
 
-/* ===========================
-   FIRST LOAD DEFAULT SETTINGS
-=========================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const been = localStorage.getItem('v_been');
-  if(been !== 'true'){
-    // First time visit
-    localStorage.setItem('v_been', 'true');
-    localStorage.setItem('v_save_votes', '1'); // Save votes ON
-    localStorage.setItem('v_auto_csv', '0');   // Auto download CSV OFF
-  }
-});
-
-/* ===========================
-   LOCAL STORAGE HELPERS
-=========================== */
 function loadCurrent(){ try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); } catch(e){ return null; } }
 function saveCurrent(obj){ if(obj) localStorage.setItem(KEY_CURRENT, JSON.stringify(obj)); else localStorage.removeItem(KEY_CURRENT); }
 function loadHistory(){ try { return JSON.parse(localStorage.getItem(KEY_HISTORY) || '[]'); } catch(e){ return []; } }
@@ -39,10 +23,9 @@ function saveHistory(arr){ localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)
 
 /* ===========================
    CREATE PAGE FUNCTIONS
-=========================== */
+   =========================== */
 function addOptionInput(value=''){
   const container = document.getElementById('optionsContainer');
-  if(!container) return;
   const div = document.createElement('div');
   div.className = 'row';
   div.innerHTML = `
@@ -59,7 +42,6 @@ function addSampleOptions(){
 
 function addRoleInput(name='', uses='', type='normal', extraValue=''){
   const container = document.getElementById('rolesContainer');
-  if(!container) return;
   const div = document.createElement('div');
   div.className = 'row';
   div.innerHTML = `
@@ -79,7 +61,9 @@ function addRoleInput(name='', uses='', type='normal', extraValue=''){
   updateRoleExtra(div.querySelector('.role-type'), extraValue);
 }
 
-function clearRoles(){ document.getElementById('rolesContainer').innerHTML = ''; }
+function clearRoles(){
+  document.getElementById('rolesContainer').innerHTML = '';
+}
 
 function updateRoleExtra(select, extraValue=''){
   const row = select.parentNode;
@@ -99,8 +83,9 @@ function updateRoleExtra(select, extraValue=''){
       const mul = document.createElement('select');
       ['2','3','4','5'].forEach(x=>{
         const opt = document.createElement('option');
-        opt.value = x; opt.textContent = 'x'+x;
-        if(extraValue==x) opt.selected=true;
+        opt.value = x;
+        opt.textContent = 'x'+x;
+        if(extraValue==x) opt.selected = true;
         mul.appendChild(opt);
       });
       extraSpan.appendChild(mul);
@@ -135,22 +120,14 @@ function startPoll(){
     return { name, uses: uses ? Number(uses) : Infinity, type, extra };
   });
 
-  const current = {
-    id: Date.now(),
-    title: pollName,
-    options,
-    roles,
-    votes: [],
-    created: new Date().toISOString()
-  };
-
-  saveCurrent(current);
+  const current = { id: Date.now(), title: pollName, options, roles, votes: [], created: new Date().toISOString() };
+  localStorage.setItem(KEY_CURRENT, JSON.stringify(current));
   go('current.html');
 }
 
 /* ===========================
    CURRENT PAGE FUNCTIONS
-=========================== */
+   =========================== */
 let selectedRoleIndex = null;
 
 function renderCurrentCard(){
@@ -211,6 +188,7 @@ function castVote(optionIdx){
 function endActiveVote(){
   const current=loadCurrent(); if(!current) return;
   const totals=current.options.map(_=>0); const tiebreakers=[];
+
   current.votes.forEach(v=>{
     const role=v.roleIndex!==null ? current.roles[v.roleIndex] : null;
     if(role && role.type==='tiebreaker') tiebreakers.push(v);
@@ -231,24 +209,23 @@ function endActiveVote(){
     voteLog: current.votes
   };
 
-  // Settings
-  const saveVotesSetting = localStorage.getItem('v_save_votes') !== '0';
+  // ============ SETTINGS: Save votes / Auto CSV ============
+  const saveVotesSetting = localStorage.getItem('v_save_votes') !== '0'; // true = save votes
   const autoCSV = localStorage.getItem('v_auto_csv') === '1';
 
   if(saveVotesSetting){
     const history=loadHistory(); history.unshift(snapshot); saveHistory(history);
-    if(autoCSV) downloadCSV_index(0); // newest vote at index 0
+    if(autoCSV) downloadCSV_index(0);
   }
 
-  saveCurrent(null);
-  go('past.html');
+  saveCurrent(null); go('past.html');
 }
 
 function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
 /* ===========================
    PAST PAGE FUNCTIONS
-=========================== */
+   =========================== */
 function renderPastList(){
   const box=document.getElementById('pastList'); if(!box) return;
   const history=loadHistory();
@@ -269,7 +246,7 @@ function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('vie
 function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
 
 function renderViewPage(){
-  const idx=Number(localStorage.getItem('v_view_idx')||-1);
+  const idx=Number(localStorage.getItem('v_view_idx')||-1); 
   const history=loadHistory();
   if(idx<0||idx>=history.length){
     document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>';
@@ -286,7 +263,7 @@ function renderViewPage(){
 
 /* ===========================
    CSV DOWNLOAD HELPERS
-=========================== */
+   =========================== */
 function triggerDownloadBlob(blob, filename){
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -302,83 +279,83 @@ function downloadCSV_viewRecord() {
   const idx = Number(localStorage.getItem('v_view_idx') || -1);
   const history = loadHistory();
   const rec = history[idx];
-  if(!rec) return alert("No data to export!");
-  let csv = '';
-  csv += `Title,"${(rec.title||'').replace(/"/g,'""')}"\n`;
-  csv += `Created,"${rec.created}"\n`;
-  csv += `Ended,"${rec.ended}"\n\n`;
-  csv += 'Option,Total Votes\n';
-  rec.options.forEach(o=>csv+=`"${o.label.replace(/"/g,'""')}",${o.votes}\n`);
-  csv+='\nRole Name,Type,Amount,Extra\n';
-  (rec.roles||[]).forEach(r=>{
-    csv+=`"${(r.name||'').replace(/"/g,'""')}",${r.type},${r.uses||r.amount||''},${r.extra||''}\n`;
+  if (!rec) return alert("No data to export!");
+  let csv = `Title,"${(rec.title || "").replace(/"/g, '""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
+  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles||[]).forEach(r => csv += `"${(r.name||"").replace(/"/g,'""')}",${r.type},${r.uses||r.amount},${r.extra}\n`);
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog||[]).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
   });
-  csv+='\nTimestamp,Option,Role Used,Weight\n';
-  (rec.voteLog||[]).forEach(v=>{
-    const time=new Date(v.ts).toLocaleString();
-    const opt=rec.options[v.optionIdx]?.label||'';
-    const role=rec.roles[v.roleIndex]?.name||'';
-    csv+=`"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename = rec.title.replace(/[^\w\-]+/g,"_")+'.csv';
-  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
-  triggerDownloadBlob(blob, filename);
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  triggerDownloadBlob(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"}), filename);
 }
 
-function downloadCSV_index(idx){
+function downloadCSV_index(idx) {
   const history = loadHistory();
   const rec = history[idx];
-  if(!rec) return alert("No data to export!");
-  let csv = '';
-  csv += `Title,"${(rec.title||'').replace(/"/g,'""')}"\n`;
-  csv += `Created,"${rec.created}"\n`;
-  csv += `Ended,"${rec.ended}"\n\n`;
-  csv += 'Option,Total Votes\n';
-  rec.options.forEach(o=>csv+=`"${o.label.replace(/"/g,'""')}",${o.votes}\n`);
-  csv+='\nRole Name,Type,Amount,Extra\n';
-  (rec.roles||[]).forEach(r=>{
-    csv+=`"${(r.name||'').replace(/"/g,'""')}",${r.type},${r.uses||r.amount||''},${r.extra||''}\n`;
+  if (!rec) return alert("No data to export!");
+  let csv = `Title,"${(rec.title || "").replace(/"/g, '""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
+  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles||[]).forEach(r => csv += `"${(r.name||"").replace(/"/g,'""')}",${r.type},${r.uses||r.amount},${r.extra}\n`);
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog||[]).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
   });
-  csv+='\nTimestamp,Option,Role Used,Weight\n';
-  (rec.voteLog||[]).forEach(v=>{
-    const time=new Date(v.ts).toLocaleString();
-    const opt=rec.options[v.optionIdx]?.label||'';
-    const role=rec.roles[v.roleIndex]?.name||'';
-    csv+=`"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename = rec.title.replace(/[^\w\-]+/g,"_")+'.csv';
-  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
-  triggerDownloadBlob(blob, filename);
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  triggerDownloadBlob(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"}), filename);
 }
 
 /* ===========================
-   CUSTOM ALERT
-=========================== */
-function showCustomAlert(msg){
-  const alertEl=document.getElementById('customAlert');
-  const msgEl=document.getElementById('alertMessage');
-  if(!alertEl || !msgEl){ alert(msg); return; }
-  msgEl.innerHTML=msg;
-  alertEl.style.display="flex";
+   SETTINGS FUNCTIONS
+   =========================== */
+function saveSettings(){
+  const dontSaveVotes = document.getElementById('dontSaveVotes')?.checked ? '1' : '0';
+  const autoCSV = document.getElementById('autoCSV')?.checked ? '1' : '0';
+  localStorage.setItem('v_save_votes', dontSaveVotes === '1' ? '0' : '1'); // invert
+  localStorage.setItem('v_auto_csv', autoCSV);
+  showCustomAlert("Settings saved!");
 }
 
-function closeAlert(){ document.getElementById('customAlert').style.display="none"; }
+function loadSettings(){
+  const saveVotes = localStorage.getItem('v_save_votes') !== '0'; // true = save votes
+  const autoCSV = localStorage.getItem('v_auto_csv') === '1';
+  document.getElementById('dontSaveVotes').checked = !saveVotes; // invert
+  document.getElementById('autoCSV').checked = autoCSV;
+}
+
+function showCustomAlert(msg){
+  const alertEl = document.getElementById('customAlert');
+  const msgEl = document.getElementById('alertMessage');
+  if(alertEl && msgEl){
+    msgEl.innerHTML = msg;
+    alertEl.style.display = "flex";
+  }
+}
+
+function closeAlert(){
+  const alertEl = document.getElementById('customAlert');
+  if(alertEl) alertEl.style.display = "none";
+}
 
 /* ===========================
    INIT ON LOAD
-=========================== */
-document.addEventListener('DOMContentLoaded',()=>{
-  if(document.getElementById('optionsList')) renderPastOptionsInDrop();
+   =========================== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(document.getElementById('optionsContainer')) addSampleOptions();
   if(document.getElementById('currentCard')) renderCurrentCard();
   if(document.getElementById('pastList')) renderPastList();
   if(document.getElementById('viewCard')) renderViewPage();
+  if(document.getElementById('dontSaveVotes')) loadSettings();
 });
 
-function renderPastOptionsInDrop(){
-  const sel=document.getElementById('optionDrop'); if(!sel) return;
-  if(sel.options.length<=1) ['Option A','Option B','Option C'].forEach(o=>{ 
-    const opt=document.createElement('option'); opt.text=o; sel.add(opt);
-  });
-}
+function escapeHtml(s){ return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
