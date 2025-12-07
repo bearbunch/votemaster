@@ -244,10 +244,6 @@ function endActiveVote(){
 
 function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
-/* =========================== PAST & VIEW PAGE FUNCTIONS =========================== */
-// renderPastList(), openView(), renderViewPage(), downloadCSV_index(), downloadCSV_viewRecord() 
-// same as previous scripts.js
-
 /* =========================== SETTINGS FUNCTIONS =========================== */
 function initSettings(){
   let settings = loadSettings();
