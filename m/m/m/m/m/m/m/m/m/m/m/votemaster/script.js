@@ -15,6 +15,7 @@ if(localStorage.getItem('v_theme'))
 
 const KEY_CURRENT = 'vapp_current';
 const KEY_HISTORY = 'vapp_history';
+const KEY_SETTINGS = 'vapp_settings';
 
 function loadCurrent(){ try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); } catch(e){ return null; } }
 function saveCurrent(obj){ if(obj) localStorage.setItem(KEY_CURRENT, JSON.stringify(obj)); else localStorage.removeItem(KEY_CURRENT); }
@@ -22,10 +23,37 @@ function loadHistory(){ try { return JSON.parse(localStorage.getItem(KEY_HISTORY
 function saveHistory(arr){ localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)); }
 
 /* ===========================
+   SETTINGS FUNCTIONS
+   =========================== */
+function loadSettings(){
+  let settings = JSON.parse(localStorage.getItem(KEY_SETTINGS) || '{}');
+  if(!settings.hasBeen){
+    // First load defaults
+    settings.hasBeen = true;
+    settings.autoCSV = false;        // auto download CSV OFF
+    settings.dontSaveVotes = false;  // save votes ON (false = save votes)
+    localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+  }
+  document.getElementById('autoCSV').checked = settings.autoCSV;
+  document.getElementById('dontSaveVotes').checked = settings.dontSaveVotes;
+}
+
+function saveSettings(){
+  const settings = {
+    hasBeen: true,
+    autoCSV: document.getElementById('autoCSV').checked,
+    dontSaveVotes: document.getElementById('dontSaveVotes').checked
+  };
+  localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+  showCustomAlert('Settings saved!');
+}
+
+/* ===========================
    CREATE PAGE FUNCTIONS
    =========================== */
 function addOptionInput(value=''){
   const container = document.getElementById('optionsContainer');
+  if(!container) return;
   const div = document.createElement('div');
   div.className = 'row';
   div.innerHTML = `
@@ -42,6 +70,7 @@ function addSampleOptions(){
 
 function addRoleInput(name='', uses='', type='normal', extraValue=''){
   const container = document.getElementById('rolesContainer');
+  if(!container) return;
   const div = document.createElement('div');
   div.className = 'row';
   div.innerHTML = `
@@ -61,9 +90,7 @@ function addRoleInput(name='', uses='', type='normal', extraValue=''){
   updateRoleExtra(div.querySelector('.role-type'), extraValue);
 }
 
-function clearRoles(){
-  document.getElementById('rolesContainer').innerHTML = '';
-}
+function clearRoles(){ document.getElementById('rolesContainer').innerHTML = ''; }
 
 function updateRoleExtra(select, extraValue=''){
   const row = select.parentNode;
@@ -117,16 +144,24 @@ function startPoll(){
     let extra = null;
     const extraInput = r.querySelector('.role-extra select');
     if(extraInput) extra = extraInput.value;
-    return { name, uses: uses ? Number(uses) : Infinity, type, extra };
+    return { name, uses: uses?Number(uses):Infinity, type, extra };
   });
 
-  const current = { id: Date.now(), title: pollName, options, roles, votes: [], created: new Date().toISOString() };
-  localStorage.setItem(KEY_CURRENT, JSON.stringify(current));
+  const current = {
+    id: Date.now(),
+    title: pollName,
+    options,
+    roles,
+    votes: [],
+    created: new Date().toISOString()
+  };
+
+  saveCurrent(current);
   go('current.html');
 }
 
 /* ===========================
-   CURRENT PAGE FUNCTIONS
+   PAST & CURRENT PAGE FUNCTIONS
    =========================== */
 let selectedRoleIndex = null;
 
@@ -206,156 +241,34 @@ function endActiveVote(){
     ended:new Date().toISOString(),
     options:current.options.map((label,i)=>({label,votes:totals[i]})),
     roles:current.roles,
-    voteLog: current.votes
+    voteLog: current.votes // SAVES RAW VOTES
   };
 
-  // ============ SETTINGS: Save votes / Auto CSV ============
-  const saveVotesSetting = localStorage.getItem('v_save_votes') !== '0'; // true = save votes
-  const autoCSV = localStorage.getItem('v_auto_csv') === '1';
-
-  if(saveVotesSetting){
+  // Handle settings
+  const settings = JSON.parse(localStorage.getItem(KEY_SETTINGS)||'{}');
+  if(!settings.dontSaveVotes) { // votes should be saved
     const history=loadHistory(); history.unshift(snapshot); saveHistory(history);
-    if(autoCSV) downloadCSV_index(0);
   }
+
+  // Auto download CSV if enabled
+  if(settings.autoCSV){ downloadCSV_index(0); } // note: last vote index might need proper calculation
 
   saveCurrent(null); go('past.html');
 }
 
-function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
-
 /* ===========================
-   PAST PAGE FUNCTIONS
+   UTILITIES
    =========================== */
-function renderPastList(){
-  const box=document.getElementById('pastList'); if(!box) return;
-  const history=loadHistory();
-  if(!history.length){ box.innerHTML='<div class="tiny">No past votes</div>'; return; }
-  box.innerHTML='';
-  history.forEach((h,idx)=>{
-    const el=document.createElement('div'); el.className='item-row';
-    el.innerHTML=`<div><div style="font-weight:700">${escapeHtml(h.title)}</div><div class="tiny">${new Date(h.ended).toLocaleString()}</div></div>
-                  <div style="display:flex;gap:8px">
-                    <button class="btn btn-ghost small" onclick="openView(${idx})">View</button>
-                    <button class="btn btn-ghost small" onclick="downloadCSV_index(${idx})">CSV</button>
-                  </div>`;
-    box.appendChild(el);
-  });
-}
-
-function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('view.html'); }
-function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
-
-function renderViewPage(){
-  const idx=Number(localStorage.getItem('v_view_idx')||-1); 
-  const history=loadHistory();
-  if(idx<0||idx>=history.length){
-    document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>';
-    return;
-  }
-  const rec=history[idx];
-  document.getElementById('viewCard').innerHTML=`
-    <div style="font-weight:800">${escapeHtml(rec.title)}</div>
-    <div class="tiny">Ended: ${new Date(rec.ended).toLocaleString()}</div>
-    <div class="divider"></div>
-    ${rec.options.map(o=>`<div class="result-row"><div>${escapeHtml(o.label)}</div><div>${o.votes}</div></div>`).join('')}
-  `;
-}
-
-/* ===========================
-   CSV DOWNLOAD HELPERS
-   =========================== */
-function triggerDownloadBlob(blob, filename){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function downloadCSV_viewRecord() {
-  const idx = Number(localStorage.getItem('v_view_idx') || -1);
-  const history = loadHistory();
-  const rec = history[idx];
-  if (!rec) return alert("No data to export!");
-  let csv = `Title,"${(rec.title || "").replace(/"/g, '""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
-  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
-  csv += "\nRole Name,Type,Amount,Extra\n";
-  (rec.roles||[]).forEach(r => csv += `"${(r.name||"").replace(/"/g,'""')}",${r.type},${r.uses||r.amount},${r.extra}\n`);
-  csv += "\nTimestamp,Option,Role Used,Weight\n";
-  (rec.voteLog||[]).forEach(v => {
-    const time = new Date(v.ts).toLocaleString();
-    const opt = rec.options[v.optionIdx]?.label || "";
-    const role = rec.roles[v.roleIndex]?.name || "";
-    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
-  triggerDownloadBlob(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"}), filename);
-}
-
-function downloadCSV_index(idx) {
-  const history = loadHistory();
-  const rec = history[idx];
-  if (!rec) return alert("No data to export!");
-  let csv = `Title,"${(rec.title || "").replace(/"/g, '""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
-  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
-  csv += "\nRole Name,Type,Amount,Extra\n";
-  (rec.roles||[]).forEach(r => csv += `"${(r.name||"").replace(/"/g,'""')}",${r.type},${r.uses||r.amount},${r.extra}\n`);
-  csv += "\nTimestamp,Option,Role Used,Weight\n";
-  (rec.voteLog||[]).forEach(v => {
-    const time = new Date(v.ts).toLocaleString();
-    const opt = rec.options[v.optionIdx]?.label || "";
-    const role = rec.roles[v.roleIndex]?.name || "";
-    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
-  triggerDownloadBlob(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"}), filename);
-}
-
-/* ===========================
-   SETTINGS FUNCTIONS
-   =========================== */
-function saveSettings(){
-  const dontSaveVotes = document.getElementById('dontSaveVotes')?.checked ? '1' : '0';
-  const autoCSV = document.getElementById('autoCSV')?.checked ? '1' : '0';
-  localStorage.setItem('v_save_votes', dontSaveVotes === '1' ? '0' : '1'); // invert
-  localStorage.setItem('v_auto_csv', autoCSV);
-  showCustomAlert("Settings saved!");
-}
-
-function loadSettings(){
-  const saveVotes = localStorage.getItem('v_save_votes') !== '0'; // true = save votes
-  const autoCSV = localStorage.getItem('v_auto_csv') === '1';
-  document.getElementById('dontSaveVotes').checked = !saveVotes; // invert
-  document.getElementById('autoCSV').checked = autoCSV;
-}
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function showCustomAlert(msg){
-  const alertEl = document.getElementById('customAlert');
-  const msgEl = document.getElementById('alertMessage');
-  if(alertEl && msgEl){
-    msgEl.innerHTML = msg;
-    alertEl.style.display = "flex";
+  const alertEl = document.getElementById('alertMessage');
+  const container = document.getElementById('customAlert');
+  if(alertEl && container){
+    alertEl.innerHTML = msg;
+    container.style.display = 'flex';
   }
 }
 
-function closeAlert(){
-  const alertEl = document.getElementById('customAlert');
-  if(alertEl) alertEl.style.display = "none";
-}
-
-/* ===========================
-   INIT ON LOAD
-   =========================== */
-document.addEventListener('DOMContentLoaded', ()=>{
-  if(document.getElementById('optionsContainer')) addSampleOptions();
-  if(document.getElementById('currentCard')) renderCurrentCard();
-  if(document.getElementById('pastList')) renderPastList();
-  if(document.getElementById('viewCard')) renderViewPage();
-  if(document.getElementById('dontSaveVotes')) loadSettings();
-});
-
-function escapeHtml(s){ return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function closeAlert(){ const container = document.getElementById('customAlert'); if(container) container.style.display = 'none'; }
 
