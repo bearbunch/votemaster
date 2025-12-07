@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vote Master — Settings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <div class="card header">
+      <div>
+        <div class="title">Settings</div>
+        <div class="subtitle">Configure your voting preferences</div>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+    </div>
+
+    <div class="card">
+      <label>
+        <input type="checkbox" id="autoCSV"> Auto download CSV when vote ends
+      </label>
+      <label>
+        <input type="checkbox" id="saveVotes"> Save votes after poll ends
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-ghost" onclick="go('index.html')">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts.js"></script>
+</body>
+</html>
