@@ -3,21 +3,27 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vote Master — View</title>
+  <title>Vote Master — Current Vote</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app">
+    <!-- Header -->
     <div class="card header">
       <div>
         <div class="title">Current Vote</div>
         <div class="subtitle">Cast votes</div>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+      <div>
+        <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+        <button class="theme-toggle" onclick="go('setting.html')">⚙️</button>
+      </div>
     </div>
 
+    <!-- Vote Card -->
     <div id="currentCard" class="card"></div>
 
+    <!-- Navigation -->
     <div class="card">
       <div class="row">
         <button class="btn btn-ghost" onclick="go('index.html')">Home</button>
@@ -25,6 +31,6 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="scripts.js"></script>
 </body>
 </html>
