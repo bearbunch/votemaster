@@ -34,8 +34,10 @@ function loadSettings(){
     settings.dontSaveVotes = false;  // save votes ON (false = save votes)
     localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   }
-  document.getElementById('autoCSV').checked = settings.autoCSV;
-  document.getElementById('dontSaveVotes').checked = settings.dontSaveVotes;
+  const autoCheckbox = document.getElementById('autoCSV');
+  const saveCheckbox = document.getElementById('dontSaveVotes');
+  if(autoCheckbox) autoCheckbox.checked = settings.autoCSV;
+  if(saveCheckbox) saveCheckbox.checked = settings.dontSaveVotes;
 }
 
 function saveSettings(){
@@ -161,7 +163,7 @@ function startPoll(){
 }
 
 /* ===========================
-   PAST & CURRENT PAGE FUNCTIONS
+   CURRENT & PAST PAGE FUNCTIONS
    =========================== */
 let selectedRoleIndex = null;
 
@@ -244,23 +246,141 @@ function endActiveVote(){
     voteLog: current.votes // SAVES RAW VOTES
   };
 
-  // Handle settings
   const settings = JSON.parse(localStorage.getItem(KEY_SETTINGS)||'{}');
-  if(!settings.dontSaveVotes) { // votes should be saved
-    const history=loadHistory(); history.unshift(snapshot); saveHistory(history);
+
+  if(!settings.dontSaveVotes){
+    const history = loadHistory();
+    history.unshift(snapshot);
+    saveHistory(history);
   }
 
-  // Auto download CSV if enabled
-  if(settings.autoCSV){ downloadCSV_index(0); } // note: last vote index might need proper calculation
+  if(settings.autoCSV){
+    const history = loadHistory();
+    const idx = history.length ? 0 : 0; // last vote index
+    downloadCSV_index(idx);
+  }
 
   saveCurrent(null); go('past.html');
 }
 
-/* ===========================
-   UTILITIES
-   =========================== */
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
+/* ===========================
+   PAST PAGE FUNCTIONS
+   =========================== */
+function renderPastList(){
+  const box=document.getElementById('pastList'); if(!box) return;
+  const history=loadHistory();
+  if(!history.length){ box.innerHTML='<div class="tiny">No past votes</div>'; return; }
+  box.innerHTML='';
+  history.forEach((h,idx)=>{
+    const el=document.createElement('div'); el.className='item-row';
+    el.innerHTML=`<div><div style="font-weight:700">${escapeHtml(h.title)}</div><div class="tiny">${new Date(h.ended).toLocaleString()}</div></div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn btn-ghost small" onclick="openView(${idx})">View</button>
+                    <button class="btn btn-ghost small" onclick="downloadCSV_index(${idx})">CSV</button>
+                  </div>`;
+    box.appendChild(el);
+  });
+}
+
+function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('view.html'); }
+function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
+
+function renderViewPage(){
+  const idx=Number(localStorage.getItem('v_view_idx')||-1); 
+  const history=loadHistory();
+  if(idx<0||idx>=history.length){
+    document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>';
+    return;
+  }
+  const rec=history[idx];
+  document.getElementById('viewCard').innerHTML=`
+    <div style="font-weight:800">${escapeHtml(rec.title)}</div>
+    <div class="tiny">Ended: ${new Date(rec.ended).toLocaleString()}</div>
+    <div class="divider"></div>
+    ${rec.options.map(o=>`<div class="result-row"><div>${escapeHtml(o.label)}</div><div>${o.votes}</div></div>`).join('')}
+  `;
+}
+
+/* ===========================
+   CSV DOWNLOAD HELPERS
+   =========================== */
+function triggerDownloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---- VIEW PAGE CSV EXPORT ---- */
+function downloadCSV_viewRecord() {
+  const idx = Number(localStorage.getItem('v_view_idx') || -1);
+  const history = loadHistory();
+  const rec = history[idx];
+  if (!rec) return alert("No data to export!");
+
+  let csv = "";
+  csv += `Title,"${(rec.title || "").replace(/"/g, '""')}"\n`;
+  csv += `Created,"${rec.created}"\n`;
+  csv += `Ended,"${rec.ended}"\n\n`;
+
+  csv += "Option,Total Votes\n";
+  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
+
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles || []).forEach(r => csv += `"${(r.name || "").replace(/"/g, '""')}",${r.type},${r.amount},${r.extra}\n`);
+
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog || []).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
+  });
+
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  triggerDownloadBlob(blob, filename);
+}
+
+/* ---- PAST PAGE CSV EXPORT ---- */
+function downloadCSV_index(idx) {
+  const history = loadHistory();
+  const rec = history[idx];
+  if (!rec) return alert("No data to export!");
+
+  let csv = "";
+  csv += `Title,"${(rec.title || "").replace(/"/g, '""')}"\n`;
+  csv += `Created,"${rec.created}"\n`;
+  csv += `Ended,"${rec.ended}"\n\n`;
+
+  csv += "Option,Total Votes\n";
+  rec.options.forEach(o => csv += `"${o.label.replace(/"/g, '""')}",${o.votes}\n`);
+
+  csv += "\nRole Name,Type,Amount,Extra\n";
+  (rec.roles || []).forEach(r => csv += `"${(r.name || "").replace(/"/g, '""')}",${r.type},${r.amount},${r.extra}\n`);
+
+  csv += "\nTimestamp,Option,Role Used,Weight\n";
+  (rec.voteLog || []).forEach(v => {
+    const time = new Date(v.ts).toLocaleString();
+    const opt = rec.options[v.optionIdx]?.label || "";
+    const role = rec.roles[v.roleIndex]?.name || "";
+    csv += `"${time}","${opt}","${role}",${v.weight}\n`;
+  });
+
+  const filename = rec.title.replace(/[^\w\-]+/g, "_") + ".csv";
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  triggerDownloadBlob(blob, filename);
+}
+
+/* ===========================
+   ALERT POPUPS
+   =========================== */
 function showCustomAlert(msg){
   const alertEl = document.getElementById('alertMessage');
   const container = document.getElementById('customAlert');
@@ -272,3 +392,20 @@ function showCustomAlert(msg){
 
 function closeAlert(){ const container = document.getElementById('customAlert'); if(container) container.style.display = 'none'; }
 
+/* ===========================
+   ON LOAD INIT
+   =========================== */
+document.addEventListener('DOMContentLoaded',()=>{
+  if(document.getElementById('optionsContainer')) renderPastOptionsInDrop();
+  if(document.getElementById('currentCard')) renderCurrentCard();
+  if(document.getElementById('pastList')) renderPastList();
+  if(document.getElementById('viewCard')) renderViewPage();
+  if(document.getElementById('autoCSV') || document.getElementById('dontSaveVotes')) loadSettings();
+});
+
+function renderPastOptionsInDrop(){
+  const sel=document.getElementById('optionDrop'); if(!sel) return;
+  if(sel.options.length<=1) ['Option A','Option B','Option C'].forEach(o=>{ 
+    const opt=document.createElement('option'); opt.text=o; sel.add(opt);
+  });
+}
