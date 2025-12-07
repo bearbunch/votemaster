@@ -23,7 +23,114 @@ function loadSettings(){ try { return JSON.parse(localStorage.getItem(KEY_SETTIN
 function saveSettings(settings){ localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings)); }
 
 /* =========================== CREATE PAGE FUNCTIONS =========================== */
-// (same as before, unchanged — omitted for brevity)
+document.addEventListener('DOMContentLoaded', () => {
+  if(document.getElementById('pollName')){ // create page logic
+
+    function addOptionInput(value=''){
+      const container = document.getElementById('optionsContainer');
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML = `
+        <input type="text" class="option-input" placeholder="Option name" value="${value}">
+        <button class="btn btn-ghost small" onclick="this.parentNode.remove(); updateBlockedOptionDropdowns();">Remove</button>
+      `;
+      container.appendChild(div);
+      updateBlockedOptionDropdowns();
+    }
+
+    function addSampleOptions(){ ['A','B','C'].forEach(o => addOptionInput(o)); }
+
+    function addRoleInput(name='', uses='', type='normal', extraValue=''){
+      const container = document.getElementById('rolesContainer');
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML = `
+        <input type="text" class="role-name" placeholder="Role name" value="${name}">
+        <input type="number" class="role-uses" placeholder="Uses (blank = unlimited)" value="${uses}" min="0">
+        <select class="role-type" onchange="updateRoleExtra(this)">
+          <option value="normal" ${type==='normal'?'selected':''}>Normal</option>
+          <option value="notallowed" ${type==='notallowed'?'selected':''}>Cannot vote for a specific option</option>
+          <option value="multiplier" ${type==='multiplier'?'selected':''}>Multiplier</option>
+          <option value="tiebreaker" ${type==='tiebreaker'?'selected':''}>Tiebreaker</option>
+          <option value="halfvote" ${type==='halfvote'?'selected':''}>Half Vote</option>
+        </select>
+        <span class="role-extra"></span>
+        <button class="btn btn-ghost small" onclick="this.parentNode.remove()">Remove</button>
+      `;
+      container.appendChild(div);
+      updateRoleExtra(div.querySelector('.role-type'), extraValue);
+    }
+
+    function clearRoles(){ document.getElementById('rolesContainer').innerHTML=''; }
+
+    function updateRoleExtra(select, extraValue=''){
+      const row = select.parentNode;
+      const extraSpan = row.querySelector('.role-extra');
+      extraSpan.innerHTML = '';
+      const options = getOptionNames();
+      switch(select.value){
+        case 'notallowed':
+          if(options.length){
+            const sel = document.createElement('select');
+            sel.innerHTML = options.map(o=>`<option value="${o}">${o}</option>`).join('');
+            if(extraValue) sel.value = extraValue;
+            extraSpan.appendChild(sel);
+          }
+          break;
+        case 'multiplier':
+          const mul = document.createElement('select');
+          ['2','3','4','5'].forEach(x=>{
+            const opt = document.createElement('option'); opt.value=x; opt.textContent='x'+x;
+            if(extraValue==x) opt.selected=true;
+            mul.appendChild(opt);
+          });
+          extraSpan.appendChild(mul);
+          break;
+      }
+    }
+
+    function getOptionNames(){ return Array.from(document.querySelectorAll('.option-input')).map(i=>i.value).filter(v=>v); }
+    function updateBlockedOptionDropdowns(){
+      const roles = document.querySelectorAll('.role-type');
+      roles.forEach(sel=>{ if(sel.value==='notallowed') updateRoleExtra(sel); });
+    }
+
+    window.addOptionInput = addOptionInput;
+    window.addSampleOptions = addSampleOptions;
+    window.addRoleInput = addRoleInput;
+    window.clearRoles = clearRoles;
+
+    window.startPoll = function(){
+      const pollName = document.getElementById('pollName').value.trim();
+      if(!pollName) return alert('Enter poll name');
+      const options = getOptionNames();
+      if(options.length < 1) return alert('Add at least one option');
+
+      const rolesEls = document.querySelectorAll('#rolesContainer .row');
+      const roles = Array.from(rolesEls).map(r=>{
+        const name = r.querySelector('.role-name').value.trim();
+        const uses = r.querySelector('.role-uses').value.trim();
+        const type = r.querySelector('.role-type').value;
+        let extra = null;
+        const extraInput = r.querySelector('.role-extra select');
+        if(extraInput) extra = extraInput.value;
+        return { name, uses: uses? Number(uses): Infinity, type, extra };
+      });
+
+      const current = {
+        id: Date.now(),
+        title: pollName,
+        options,
+        roles,
+        votes: [],
+        created: new Date().toISOString()
+      };
+
+      saveCurrent(current);
+      go('current.html');
+    }
+  }
+});
 
 /* =========================== CURRENT PAGE FUNCTIONS =========================== */
 let selectedRoleIndex = null;
@@ -113,16 +220,22 @@ function endActiveVote(){
 
   const settings = loadSettings();
   const history = loadHistory();
+  const tempSave = settings.autoCSV && settings.dontSaveVotes;
 
-  // Save votes unless dontSaveVotes is true
-  if(!settings.dontSaveVotes){
-    history.unshift(snapshot);
-    saveHistory(history);
+  if(!settings.dontSaveVotes || tempSave){
+      history.unshift(snapshot);
+      saveHistory(history);
 
-    // Auto CSV download if enabled
-    if(settings.autoCSV && history.length){
-      downloadCSV_index(0); // newest vote
-    }
+      if(settings.autoCSV && history.length){
+          setTimeout(()=>{
+              downloadCSV_index(0);
+              if(tempSave){
+                  const hist = loadHistory();
+                  hist.shift();
+                  saveHistory(hist);
+              }
+          }, 100);
+      }
   }
 
   saveCurrent(null);
@@ -133,17 +246,14 @@ function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; sa
 
 /* =========================== PAST & VIEW PAGE FUNCTIONS =========================== */
 // renderPastList(), openView(), renderViewPage(), downloadCSV_index(), downloadCSV_viewRecord() 
-// same as your previous scripts.js (unchanged)
+// same as previous scripts.js
 
 /* =========================== SETTINGS FUNCTIONS =========================== */
 function initSettings(){
   let settings = loadSettings();
-
-  // Defaults
   if(settings.autoCSV===undefined) settings.autoCSV=false; 
   if(settings.dontSaveVotes===undefined) settings.dontSaveVotes=false; 
 
-  // Sync with checkboxes if page has them
   const autoCSVBox=document.getElementById('autoCSV');
   if(autoCSVBox) autoCSVBox.checked = settings.autoCSV;
 
