@@ -1,4 +1,4 @@
-p/* ===========================
+/* ===========================
    COMMON UTILITIES
    =========================== */
 function go(path){ location.href = path; }
@@ -453,3 +453,4 @@ function importVoteFromLink() {
     alert("Invalid or corrupted vote link.");
   }
   }
+
