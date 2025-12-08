@@ -4,11 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Vote Master — Current Vote</title>
+
   <link rel="stylesheet" href="styles.css">
 
-  <!-- QR library (optional: used if you press QR button) -->
+  <!-- QR Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
+
 <body>
   <div class="app">
 
@@ -23,13 +25,13 @@
       </div>
     </div>
 
-    <!-- Vote Card -->
+    <!-- Vote content -->
     <div id="currentCard" class="card"></div>
 
     <!-- Share link button -->
     <div class="card">
       <div class="row">
-        <button class="btn btn-primary" onclick="openShareModal()">Get Share Link</button>
+        <button class="btn btn-primary" onclick="showShareLinkPopup()">Get Vote Link</button>
       </div>
     </div>
 
@@ -42,70 +44,75 @@
 
   </div>
 
-  <!-- Share Modal (custom, matches card style) -->
-  <div id="shareModal" style="
+  <!-- ===========================
+       SHARE POPUP
+       =========================== -->
+  <div id="share_popup" style="
     display:none;
     position:fixed;
-    left:50%;
-    top:50%;
+    top:50%; left:50%;
     transform:translate(-50%,-50%);
-    z-index:1200;
-    width:90%;
-    max-width:360px;
+    z-index:999;
+    background:var(--card-bg);
+    padding:20px;
+    width:330px;
+    border-radius:18px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.25);
+    color:var(--text-color);
+    text-align:center;
   ">
-    <div style="
+    <div style="font-size:18px; font-weight:700;">Share Vote</div>
+
+    <label style="margin-top:10px; display:flex; gap:6px; align-items:center;">
+      <input id="share_protect" type="checkbox">
+      Password protect
+    </label>
+
+    <input id="share_password" type="password" placeholder="Password"
+      style="
+        display:block;
+        width:100%;
+        margin-top:6px;
+        padding:8px;
+        border-radius:8px;
+        background:var(--card-bg);
+        color:var(--text-color);
+      ">
+
+    <textarea id="share_link" style="
+      width:100%;
+      height:90px;
+      margin-top:12px;
+      padding:10px;
+      border-radius:10px;
       background:var(--card-bg);
       color:var(--text-color);
-      padding:18px;
-      border-radius:14px;
-      box-shadow:0 10px 30px rgba(0,0,0,0.18);
-    ">
-      <div style="font-weight:800; font-size:16px;">Share Vote</div>
-      <div class="tiny" style="margin-top:6px; color:var(--muted-color,#666);">Add a password to protect the link (optional).</div>
+      resize:none;"></textarea>
 
-      <div style="margin-top:12px;">
-        <label style="display:flex; align-items:center; gap:8px;">
-          <input id="shareProtectToggle" type="checkbox" onchange="document.getElementById('sharePassword').style.display = this.checked ? 'block' : 'none'">
-          Protect with password
-        </label>
-
-        <input id="sharePassword" type="password" placeholder="Enter password" style="
-          width:100%; display:none; margin-top:8px; padding:8px; border-radius:8px;
-          background:var(--card-bg); color:var(--text-color);
-        ">
-      </div>
-
-      <div style="margin-top:12px;">
-        <button class="btn btn-primary" onclick="(async()=>{ await generateShareLink(); })()">Generate Link</button>
-        <button class="btn btn-ghost" onclick="closeShareModal()">Close</button>
-      </div>
-
-      <div style="margin-top:12px;">
-        <textarea id="shareLinkBox" style="
-          width:100%; height:84px; padding:10px; border-radius:8px; resize:none;
-          background:var(--card-bg); color:var(--text-color);
-        " readonly></textarea>
-      </div>
-
-      <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
-        <button class="btn btn-primary" onclick="copyShareLinkToClipboard()">Copy</button>
-        <button class="btn btn-primary" onclick="showShareQRCode()">QR Code</button>
-      </div>
-
-      <div id="shareQR" style="display:none; margin-top:12px;"></div>
+    <div style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="share_copy()">Copy</button>
+      <button class="btn btn-primary" onclick="share_showQR()">QR Code</button>
+      <button class="btn btn-ghost" onclick="share_close()">Close</button>
     </div>
+
+    <!-- QR container -->
+    <div id="share_qr" style="display:none; margin-top:10px;"></div>
   </div>
 
-  <!-- Dark overlay when modal visible -->
-  <div id="shareOverlay" style="
-    display:none; position:fixed; left:0; top:0; width:100%; height:100%;
-    background: rgba(0,0,0,0.28); z-index:1100;"></div>
-
+  <!-- Script -->
   <script src="script.js"></script>
 
   <script>
-    // nothing else needed here: script.js handles share logic and import on load
-    // (we open the modal with openShareModal() which is in script.js)
+    /* ===========================
+       LOAD FROM SHARE LINK
+       =========================== */
+    importVoteFromLink();
+
+    // Render once data is imported
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.renderCurrentCard) renderCurrentCard();
+    });
   </script>
+
 </body>
-</html>
+  </html>
