@@ -744,25 +744,13 @@ function showShareLinkPopup() {
 
 
 
-  const protect = document.getElementById("share_protect").checked;
-
-  const pw = document.getElementById("share_password").value.trim();
-
-
+  
 
   let payload = "";
 
 
 
-  if (protect) {
-
-    if (!pw) {
-
-      document.getElementById("share_link").value = "Enter password";
-
-      return;
-
-    }
+  
 
     const encrypted = xorEncrypt(voteString, pw);
 
@@ -907,4 +895,5 @@ function importVoteFromLink() {
   }
 
   }
+
 
