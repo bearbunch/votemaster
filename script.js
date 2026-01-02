@@ -1,19 +1,8 @@
 /* ===========================
    COMMON UTILITIES
    =========================== */
+
 function go(path){ location.href = path; }
-
-function setVh() {
-  const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-}
- 
-// Initial calculation
-setVh();
-
-// Recalculate on resize/orientation change
-window.addEventListener('resize', setVh);
-
 
 function toggleTheme(){
   const html = document.documentElement;
@@ -28,21 +17,40 @@ if(localStorage.getItem('v_theme'))
 const KEY_CURRENT = 'vapp_current';
 const KEY_HISTORY = 'vapp_history';
 
-function loadCurrent(){ try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); } catch(e){ return null; } }
-function saveCurrent(obj){ if(obj) localStorage.setItem(KEY_CURRENT, JSON.stringify(obj)); else localStorage.removeItem(KEY_CURRENT); }
-function loadHistory(){ try { return JSON.parse(localStorage.getItem(KEY_HISTORY) || '[]'); } catch(e){ return []; } }
+function loadCurrent(){ 
+  try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); } 
+  catch(e){ return null; } 
+}
+
+function saveCurrent(obj){ 
+  if(obj) localStorage.setItem(KEY_CURRENT, JSON.stringify(obj)); 
+  else localStorage.removeItem(KEY_CURRENT); 
+}
+
+function loadHistory(){ 
+  try { return JSON.parse(localStorage.getItem(KEY_HISTORY) || '[]'); } 
+  catch(e){ return []; } 
+}
+
 function saveHistory(arr){ localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)); }
+
+function escapeHtml(s){ 
+  return String(s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); 
+}
 
 /* ===========================
    CREATE PAGE FUNCTIONS
    =========================== */
+
 function addOption(name){
   if(!name) return;
   const list = document.getElementById('optionsList');
   const row = document.createElement('div');
   row.className = 'item-row';
-  row.innerHTML = `<input class="option-input" type="text" value="${escapeHtml(name)}" placeholder="Option name">
-                   <button class="btn btn-ghost small" onclick="removeNode(this)">Remove</button>`;
+  row.innerHTML = `
+    <input class="option-input" type="text" value="${escapeHtml(name)}" placeholder="Option name">
+    <button class="btn btn-ghost small" onclick="removeNode(this)">Remove</button>
+  `;
   list.appendChild(row);
 }
 
@@ -65,29 +73,29 @@ function addRole(){
   `;
   rolesList.appendChild(row);
 
-  // dynamically show extra field
   const typeSelect = row.querySelector('.role-type');
   const extraSelect = row.querySelector('.role-extra');
 
   typeSelect.addEventListener('change',()=>{
     const type = typeSelect.value;
+    extraSelect.innerHTML='';
     if(type==='notallowed'){
-      // blocked options
-      extraSelect.innerHTML = '';
       const options = Array.from(document.querySelectorAll('#optionsList .option-input')).map(o=>o.value).filter(v=>v);
       options.forEach(o=>{
         const opt = document.createElement('option'); opt.value=opt.text=o; extraSelect.add(opt);
       });
       extraSelect.style.display = options.length ? 'inline-block':'none';
     } else if(type==='multiplier'){
-      extraSelect.innerHTML='';
       ['2','3','4','5'].forEach(x=>{ const opt=document.createElement('option'); opt.value=x; opt.text=x; extraSelect.add(opt); });
       extraSelect.style.display='inline-block';
     } else extraSelect.style.display='none';
   });
 }
 
-function removeNode(btn){ const row = btn.closest('.item-row'); if(row) row.remove(); }
+function removeNode(btn){ 
+  const row = btn.closest('.item-row'); 
+  if(row) row.remove(); 
+}
 
 function startVoteFromCreator(){
   const titleEl = document.getElementById('voteTitle');
@@ -122,6 +130,7 @@ function startVoteFromCreator(){
 /* ===========================
    CURRENT PAGE FUNCTIONS
    =========================== */
+
 let selectedRoleIndex = null;
 
 function renderCurrentCard(){
@@ -149,6 +158,7 @@ function renderCurrentCard(){
     <div class="row">
       <button class="btn btn-ghost" onclick="endActiveVote()">End Vote</button>
       <button class="btn btn-ghost" onclick="resetActiveVote()">Reset Votes</button>
+      <button class="btn btn-ghost" onclick="showShareLinkPopup()">Share</button>
     </div>
   `;
 }
@@ -158,11 +168,7 @@ function selectRole(idx){ selectedRoleIndex=idx; }
 function castVote(optionIdx){
   const current=loadCurrent(); if(!current) return;
 
-  const buttons=document.querySelectorAll('#currentOptions .vote-btn');
-  buttons.forEach(b=>{ b.disabled=true; b.style.background='gray'; b.style.opacity='0.6'; b.style.cursor='not-allowed'; });
-  setTimeout(()=>{ buttons.forEach(b=>{ b.disabled=false; b.style.background=''; b.style.opacity=''; b.style.cursor='pointer'; }); },2000);
-
-  let weight=1; let applied=true;
+  let weight=1, applied=true;
   let role = selectedRoleIndex!==null ? current.roles[selectedRoleIndex] : null;
   if(role){
     switch(role.type){
@@ -184,7 +190,6 @@ function castVote(optionIdx){
 function endActiveVote(){
   const current=loadCurrent(); if(!current) return;
   const totals=current.options.map(_=>0); const tiebreakers=[];
-
   current.votes.forEach(v=>{
     const role=v.roleIndex!==null ? current.roles[v.roleIndex] : null;
     if(role && role.type==='tiebreaker') tiebreakers.push(v);
@@ -196,8 +201,13 @@ function endActiveVote(){
   tiebreakers.forEach(tb=>{ if(tied.includes(tb.optionIdx)) totals[tb.optionIdx]+=1; });
 
   const snapshot={
-    id:Date.now(), title:current.title, created:current.created, ended:new Date().toISOString(),
-    options:current.options.map((label,i)=>({label,votes:totals[i]})), roles:current.roles
+    id:Date.now(),
+    title:current.title,
+    created:current.created,
+    ended:new Date().toISOString(),
+    options:current.options.map((label,i)=>({label,votes:totals[i]})),
+    roles:current.roles,
+    voteLog: current.votes
   };
 
   const history=loadHistory(); history.unshift(snapshot); saveHistory(history);
@@ -207,69 +217,112 @@ function endActiveVote(){
 function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
 /* ===========================
-   PAST PAGE FUNCTIONS
+   SHARE LINK FUNCTIONS
    =========================== */
-function renderPastList(){
-  const box=document.getElementById('pastList'); if(!box) return;
-  const history=loadHistory();
-  if(!history.length){ box.innerHTML='<div class="tiny">No past votes</div>'; return; }
-  box.innerHTML='';
-  history.forEach((h,idx)=>{
-    const el=document.createElement('div'); el.className='item-row';
-    el.innerHTML=`<div><div style="font-weight:700">${escapeHtml(h.title)}</div><div class="tiny">${new Date(h.ended).toLocaleString()}</div></div>
-                  <div style="display:flex;gap:8px">
-                    <button class="btn btn-ghost small" onclick="openView(${idx})">View</button>
-                    <button class="btn btn-ghost small" onclick="downloadCSV_index(${idx})">CSV</button>
-                  </div>`;
-    box.appendChild(el);
-  });
+
+let share_lastLink = "";
+
+function xorEncrypt(text, key){
+  return [...text].map((c,i)=>String.fromCharCode(c.charCodeAt(0)^key.charCodeAt(i%key.length))).join('');
+}
+function xorDecrypt(text, key){ return xorEncrypt(text,key); }
+
+function showShareLinkPopup(){
+  const cur = loadCurrent();
+  if(!cur) return alert("No active vote");
+
+  let pw = prompt("Optional password (leave blank for none):");
+  let payload;
+  if(pw){
+    payload = btoa(JSON.stringify({ protected:true, data:xorEncrypt(JSON.stringify(cur),pw) }));
+  } else {
+    payload = btoa(JSON.stringify(cur));
+  }
+
+  const link = location.origin + location.pathname + "?data=" + encodeURIComponent(payload);
+  share_lastLink = link;
+
+  const linkInput = document.getElementById('share_link');
+  if(linkInput) linkInput.value = link;
+  const popup = document.getElementById('share_popup');
+  if(popup) popup.style.display='block';
 }
 
-function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('view.html'); }
-function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
-function renderViewPage(){
-  const idx=Number(localStorage.getItem('v_view_idx')||-1); const history=loadHistory();
-  if(idx<0||idx>=history.length){ document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>'; return; }
-  const rec=history[idx];
-  document.getElementById('viewCard').innerHTML=`
-    <div style="font-weight:800">${escapeHtml(rec.title)}</div>
-    <div class="tiny">Ended: ${new Date(rec.ended).toLocaleString()}</div>
-    <div class="divider"></div>
-    ${rec.options.map(o=>`<div class="result-row"><div>${escapeHtml(o.label)}</div><div>${o.votes}</div></div>`).join('')}
-  `;
+function share_copy(){
+  if(!share_lastLink) return alert("No link to copy");
+  try{
+    navigator.clipboard.writeText(share_lastLink).then(()=>alert("Link copied!"));
+  }catch(e){ alert("Copy failed, select manually"); }
 }
 
-function downloadCSV_index(idx){
-  const history=loadHistory(); const rec=history[idx]; if(!rec) return;
-  let csv='Option,Count\n';
-  rec.options.forEach(o=>csv+=`"${o.label}",${o.votes}\n`);
-  triggerDownloadBlob(csv, `${rec.title.replace(/[^\w\-]+/g,'_')}.csv`);
+function share_close(){
+  const popup = document.getElementById('share_popup');
+  const qr = document.getElementById('share_qr');
+  if(popup) popup.style.display='none';
+  if(qr){ qr.style.display='none'; qr.innerHTML=''; }
 }
 
-function triggerDownloadBlob(text,filename){
-  const blob=new Blob([text],{type:'text/csv'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },300);
+function share_showQR(){
+  if(!share_lastLink) return alert("No link to generate QR");
+  const box = document.getElementById("share_qr");
+  if(!box) return;
+  box.innerHTML = "";
+  box.style.display='block';
+  new QRCode(box,{text:share_lastLink,width:200,height:200});
 }
 
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/* ===========================
+   IMPORT VOTE FROM LINK
+   =========================== */
+
+function importVoteFromLink(){
+  const p = new URLSearchParams(location.search);
+  if(!p.has('data')) return;
+
+  try {
+    const raw = atob(p.get('data'));
+    let decoded;
+
+    // Protected vote
+    if(raw.startsWith("{") && raw.includes('"protected":')){
+      const wrapper = JSON.parse(raw);
+      if(!wrapper.protected) return;
+
+      const pwd = wrapper.data; // encrypted vote
+      let ipwd = null;
+      let success = false;
+
+      // Keep opening input until correct password
+      while(!success){
+        ipwd = prompt("Enter password to unlock vote:");
+        if(ipwd === null){
+          alert("Password is required to open vote.");
+          continue;
+        }
+        try{
+          const decrypted = xorDecrypt(pwd, ipwd);
+          decoded = JSON.parse(decrypted);
+          success = true;
+        } catch(e){
+          alert("Incorrect password. Please try again.");
+        }
+      }
+    } else {
+      decoded = JSON.parse(raw); // unprotected vote
+    }
+
+    saveCurrent(decoded);
+  } catch(e){
+    console.error(e);
+    alert("Invalid or corrupted vote link.");
+  }
+}
 
 /* ===========================
    INIT ON LOAD
    =========================== */
-document.addEventListener('DOMContentLoaded',()=>{
-  if(document.getElementById('optionsList')) renderPastOptionsInDrop();
-  if(document.getElementById('currentCard')) renderCurrentCard();
-  if(document.getElementById('pastList')) renderPastList();
-  if(document.getElementById('viewCard')) renderViewPage();
-});
 
-function renderPastOptionsInDrop(){
-  const sel=document.getElementById('optionDrop'); if(!sel) return;
-  if(sel.options.length<=1) ['Option A','Option B','Option C'].forEach(o=>{ const opt=document.createElement('option'); opt.text=o; sel.add(opt); });
-}
-fetch("footer.html")
-  .then(response => response.text())
-  .then(data => {
-    document.getElementById("footer").innerHTML = data;
+document.addEventListener('DOMContentLoaded',()=>{
+  importVoteFromLink();
+  renderCurrentCard();
 });

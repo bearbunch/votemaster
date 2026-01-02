@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+  <head>
+    <html lang="en" data-theme="light">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>404 - not currently done</title>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+      setTimeout(function() {location.reload()}, 5000);
+    </script>
+  </head>
+  <body>
+ 
+    <div class="app">
+    <div class="card header">
+    <div>
+    <div class="title" id="viewTitle">Sorry we are still makeing this website please bear with us  :)</div>
+    <h4>Our website was meant to go live on the 14th of December but we have had some technical difficulties and it will go live later today. If you want you can visit our
+    <a href="https://pokerface.w3spaces.com/bearbunch/Index.html" target="_blank">website</a></h4>
+    <script src="scripts.js"></script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
