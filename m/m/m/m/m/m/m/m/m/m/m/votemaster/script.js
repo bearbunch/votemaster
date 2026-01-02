@@ -279,35 +279,40 @@ function importVoteFromLink(){
   const p = new URLSearchParams(location.search);
   if(!p.has('data')) return;
 
-  try{
+  try {
     const raw = atob(p.get('data'));
     let decoded;
 
+    // Protected vote
     if(raw.startsWith("{") && raw.includes('"protected":')){
       const wrapper = JSON.parse(raw);
       if(!wrapper.protected) return;
 
-      // Keep prompting until correct password
-      while(true){
-        const pw = prompt("Enter password to unlock vote:");
-        if(pw === null){
-          alert("Password required to open vote.");
+      const pwd = wrapper.data; // encrypted vote
+      let ipwd = null;
+      let success = false;
+
+      // Keep opening input until correct password
+      while(!success){
+        ipwd = prompt("Enter password to unlock vote:");
+        if(ipwd === null){
+          alert("Password is required to open vote.");
           continue;
         }
         try{
-          const decrypted = xorDecrypt(wrapper.data,pw);
+          const decrypted = xorDecrypt(pwd, ipwd);
           decoded = JSON.parse(decrypted);
-          break;
-        }catch(e){
+          success = true;
+        } catch(e){
           alert("Incorrect password. Please try again.");
         }
       }
-    }else{
-      decoded = JSON.parse(raw);
+    } else {
+      decoded = JSON.parse(raw); // unprotected vote
     }
 
     saveCurrent(decoded);
-  }catch(e){
+  } catch(e){
     console.error(e);
     alert("Invalid or corrupted vote link.");
   }
