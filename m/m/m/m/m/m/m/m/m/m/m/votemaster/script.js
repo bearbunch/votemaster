@@ -1,6 +1,7 @@
 /* ===========================
    COMMON UTILITIES
    =========================== */
+
 function go(path){ location.href = path; }
 
 function toggleTheme(){
@@ -10,9 +11,8 @@ function toggleTheme(){
   localStorage.setItem('v_theme', next);
 }
 
-if(localStorage.getItem('v_theme')){
+if(localStorage.getItem('v_theme'))
   document.documentElement.setAttribute('data-theme', localStorage.getItem('v_theme'));
-}
 
 const KEY_CURRENT = 'vapp_current';
 const KEY_HISTORY = 'vapp_history';
@@ -32,9 +32,7 @@ function loadHistory(){
   catch(e){ return []; } 
 }
 
-function saveHistory(arr){ 
-  localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)); 
-}
+function saveHistory(arr){ localStorage.setItem(KEY_HISTORY, JSON.stringify(arr)); }
 
 function escapeHtml(s){ 
   return String(s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); 
@@ -43,13 +41,16 @@ function escapeHtml(s){
 /* ===========================
    CREATE PAGE FUNCTIONS
    =========================== */
+
 function addOption(name){
   if(!name) return;
   const list = document.getElementById('optionsList');
   const row = document.createElement('div');
   row.className = 'item-row';
-  row.innerHTML = `<input class="option-input" type="text" value="${escapeHtml(name)}" placeholder="Option name">
-                   <button class="btn btn-ghost small" onclick="removeNode(this)">Remove</button>`;
+  row.innerHTML = `
+    <input class="option-input" type="text" value="${escapeHtml(name)}" placeholder="Option name">
+    <button class="btn btn-ghost small" onclick="removeNode(this)">Remove</button>
+  `;
   list.appendChild(row);
 }
 
@@ -114,7 +115,14 @@ function startVoteFromCreator(){
     return { name, amount, type, extra };
   });
 
-  const current = { id: Date.now(), title, options, roles, votes: [], created: new Date().toISOString() };
+  const current = {
+    id: Date.now(),
+    title,
+    options,
+    roles,
+    votes: [],
+    created: new Date().toISOString()
+  };
   saveCurrent(current);
   go('current.html');
 }
@@ -122,6 +130,7 @@ function startVoteFromCreator(){
 /* ===========================
    CURRENT PAGE FUNCTIONS
    =========================== */
+
 let selectedRoleIndex = null;
 
 function renderCurrentCard(){
@@ -149,6 +158,7 @@ function renderCurrentCard(){
     <div class="row">
       <button class="btn btn-ghost" onclick="endActiveVote()">End Vote</button>
       <button class="btn btn-ghost" onclick="resetActiveVote()">Reset Votes</button>
+      <button class="btn btn-ghost" onclick="showShareLinkPopup()">Share</button>
     </div>
   `;
 }
@@ -157,15 +167,14 @@ function selectRole(idx){ selectedRoleIndex=idx; }
 
 function castVote(optionIdx){
   const current=loadCurrent(); if(!current) return;
-  const buttons=document.querySelectorAll('#currentOptions .vote-btn');
-  buttons.forEach(b=>{ b.disabled=true; b.style.background='gray'; b.style.opacity='0.6'; b.style.cursor='not-allowed'; });
-  setTimeout(()=>{ buttons.forEach(b=>{ b.disabled=false; b.style.background=''; b.style.opacity=''; b.style.cursor='pointer'; }); },2000);
 
-  let weight=1; let applied=true;
+  let weight=1, applied=true;
   let role = selectedRoleIndex!==null ? current.roles[selectedRoleIndex] : null;
   if(role){
     switch(role.type){
-      case 'notallowed': if(role.extra===current.options[optionIdx]) applied=false; break;
+      case 'notallowed':
+        if(role.extra===current.options[optionIdx]) applied=false;
+        break;
       case 'multiplier': weight=Number(role.extra)||2; break;
       case 'halfvote': weight=0.5; break;
       case 'tiebreaker': weight=0; break;
@@ -181,7 +190,6 @@ function castVote(optionIdx){
 function endActiveVote(){
   const current=loadCurrent(); if(!current) return;
   const totals=current.options.map(_=>0); const tiebreakers=[];
-
   current.votes.forEach(v=>{
     const role=v.roleIndex!==null ? current.roles[v.roleIndex] : null;
     if(role && role.type==='tiebreaker') tiebreakers.push(v);
@@ -209,146 +217,107 @@ function endActiveVote(){
 function resetActiveVote(){ const c=loadCurrent(); if(!c) return; c.votes=[]; saveCurrent(c); renderCurrentCard(); }
 
 /* ===========================
-   PAST & VIEW FUNCTIONS
+   SHARE LINK FUNCTIONS
    =========================== */
-function renderPastList(){
-  const box=document.getElementById('pastList'); if(!box) return;
-  const history=loadHistory();
-  if(!history.length){ box.innerHTML='<div class="tiny">No past votes</div>'; return; }
-  box.innerHTML='';
-  history.forEach((h,idx)=>{
-    const el=document.createElement('div'); el.className='item-row';
-    el.innerHTML=`<div><div style="font-weight:700">${escapeHtml(h.title)}</div><div class="tiny">${new Date(h.ended).toLocaleString()}</div></div>
-                  <div style="display:flex;gap:8px">
-                    <button class="btn btn-ghost small" onclick="openView(${idx})">View</button>
-                    <button class="btn btn-ghost small" onclick="downloadCSV_index(${idx})">CSV</button>
-                  </div>`;
-    box.appendChild(el);
-  });
+
+let share_lastLink = "";
+
+function xorEncrypt(text, key){
+  return [...text].map((c,i)=>String.fromCharCode(c.charCodeAt(0)^key.charCodeAt(i%key.length))).join('');
 }
-
-function openView(idx){ localStorage.setItem('v_view_idx', String(idx)); go('view.html'); }
-function clearHistory(){ if(!confirm('Clear all past votes?')) return; saveHistory([]); renderPastList(); }
-
-function renderViewPage(){
-  const idx=Number(localStorage.getItem('v_view_idx')||-1); 
-  const history=loadHistory();
-  if(idx<0||idx>=history.length){ document.getElementById('viewCard').innerHTML='<div class="tiny">Not found</div>'; return; }
-  const rec=history[idx];
-  document.getElementById('viewCard').innerHTML=`
-    <div style="font-weight:800">${escapeHtml(rec.title)}</div>
-    <div class="tiny">Ended: ${new Date(rec.ended).toLocaleString()}</div>
-    <div class="divider"></div>
-    ${rec.options.map(o=>`<div class="result-row"><div>${escapeHtml(o.label)}</div><div>${o.votes}</div></div>`).join('')}
-  `;
-}
-
-/* ===========================
-   CSV EXPORT HELPERS
-   =========================== */
-function triggerDownloadBlob(blob, filename){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function downloadCSV_viewRecord(){ 
-  const idx = Number(localStorage.getItem('v_view_idx') || -1);
-  const rec = loadHistory()[idx]; if(!rec) return alert("No data to export!");
-  let csv=`Title,"${(rec.title||'').replace(/"/g,'""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
-  rec.options.forEach(o=>{ csv+=`"${o.label.replace(/"/g,'""')}",${o.votes}\n`; });
-  csv+="\nRole Name,Type,Amount,Extra\n";
-  (rec.roles||[]).forEach(r=>{ csv+=`"${(r.name||'').replace(/"/g,'""')}",${r.type},${r.amount},${r.extra}\n`; });
-  csv+="\nTimestamp,Option,Role Used,Weight\n";
-  (rec.voteLog||[]).forEach(v=>{ 
-    const time=new Date(v.ts).toLocaleString();
-    const opt=rec.options[v.optionIdx]?.label||"";
-    const role=rec.roles[v.roleIndex]?.name||"";
-    csv+=`"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename=rec.title.replace(/[^\w\-]+/g,"_")+".csv";
-  triggerDownloadBlob(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}), filename);
-}
-
-function downloadCSV_index(idx){ 
-  const rec=loadHistory()[idx]; if(!rec) return alert("No data to export!");
-  let csv=`Title,"${(rec.title||'').replace(/"/g,'""')}"\nCreated,"${rec.created}"\nEnded,"${rec.ended}"\n\nOption,Total Votes\n`;
-  rec.options.forEach(o=>{ csv+=`"${o.label.replace(/"/g,'""')}",${o.votes}\n`; });
-  csv+="\nRole Name,Type,Amount,Extra\n";
-  (rec.roles||[]).forEach(r=>{ csv+=`"${(r.name||'').replace(/"/g,'""')}",${r.type},${r.amount},${r.extra}\n`; });
-  csv+="\nTimestamp,Option,Role Used,Weight\n";
-  (rec.voteLog||[]).forEach(v=>{ 
-    const time=new Date(v.ts).toLocaleString();
-    const opt=rec.options[v.optionIdx]?.label||"";
-    const role=rec.roles[v.roleIndex]?.name||"";
-    csv+=`"${time}","${opt}","${role}",${v.weight}\n`;
-  });
-  const filename=rec.title.replace(/[^\w\-]+/g,"_")+".csv";
-  triggerDownloadBlob(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}), filename);
-}
-
-/* ===========================
-   SHARE LINK / XOR ENCRYPTION
-   =========================== */
-let share_lastLink="";
-
-function xorEncrypt(t,k){
-  return [...t].map((c,i)=>String.fromCharCode(c.charCodeAt(0)^k.charCodeAt(i%k.length))).join('');
-}
-const xorDecrypt=xorEncrypt;
+function xorDecrypt(text, key){ return xorEncrypt(text,key); }
 
 function showShareLinkPopup(){
-  const cur=loadCurrent();
+  const cur = loadCurrent();
   if(!cur) return alert("No active vote");
-  const pw=prompt("Optional password (leave blank for none):");
+
+  let pw = prompt("Optional password (leave blank for none):");
   let payload;
   if(pw){
-    payload=btoa(JSON.stringify({protected:true,data:xorEncrypt(JSON.stringify(cur),pw)}));
-  } else payload=btoa(JSON.stringify(cur));
-  const link=location.origin+location.pathname+"?data="+encodeURIComponent(payload);
-  share_lastLink=link;
-  document.getElementById('share_link').value=link;
-  document.getElementById('share_popup').style.display='block';
+    payload = btoa(JSON.stringify({ protected:true, data:xorEncrypt(JSON.stringify(cur),pw) }));
+  } else {
+    payload = btoa(JSON.stringify(cur));
+  }
+
+  const link = location.origin + location.pathname + "?data=" + encodeURIComponent(payload);
+  share_lastLink = link;
+
+  const linkInput = document.getElementById('share_link');
+  if(linkInput) linkInput.value = link;
+  const popup = document.getElementById('share_popup');
+  if(popup) popup.style.display='block';
 }
 
-function share_copy(){ navigator.clipboard.writeText(share_lastLink); }
+function share_copy(){
+  if(!share_lastLink) return alert("No link to copy");
+  try{
+    navigator.clipboard.writeText(share_lastLink).then(()=>alert("Link copied!"));
+  }catch(e){ alert("Copy failed, select manually"); }
+}
+
 function share_close(){
-  document.getElementById('share_popup').style.display='none';
-  document.getElementById('share_qr').style.display='none';
-  document.getElementById('share_qr').innerHTML='';
+  const popup = document.getElementById('share_popup');
+  const qr = document.getElementById('share_qr');
+  if(popup) popup.style.display='none';
+  if(qr){ qr.style.display='none'; qr.innerHTML=''; }
 }
 
 function share_showQR(){
-  const box=document.getElementById('share_qr');
+  if(!share_lastLink) return alert("No link to generate QR");
+  const box = document.getElementById("share_qr");
+  if(!box) return;
+  box.innerHTML = "";
   box.style.display='block';
-  box.innerHTML='';
-  new QRCode(box,{ text: share_lastLink, width: 200, height: 200 });
-}
-
-function importVoteFromLink(){
-  const p=new URLSearchParams(location.search);
-  if(!p.has('data')) return;
-  try{
-    const raw=JSON.parse(atob(p.get('data')));
-    if(raw.protected){
-      const pw=prompt("Password?");
-      if(!pw) return;
-      saveCurrent(JSON.parse(xorDecrypt(raw.data,pw)));
-    } else saveCurrent(raw);
-  } catch(e){ alert("Invalid link"); }
+  new QRCode(box,{text:share_lastLink,width:200,height:200});
 }
 
 /* ===========================
-   INIT
+   IMPORT VOTE FROM LINK
    =========================== */
+
+function importVoteFromLink(){
+  const p = new URLSearchParams(location.search);
+  if(!p.has('data')) return;
+
+  try{
+    const raw = atob(p.get('data'));
+    let decoded;
+
+    if(raw.startsWith("{") && raw.includes('"protected":')){
+      const wrapper = JSON.parse(raw);
+      if(!wrapper.protected) return;
+
+      // Keep prompting until correct password
+      while(true){
+        const pw = prompt("Enter password to unlock vote:");
+        if(pw === null){
+          alert("Password required to open vote.");
+          continue;
+        }
+        try{
+          const decrypted = xorDecrypt(wrapper.data,pw);
+          decoded = JSON.parse(decrypted);
+          break;
+        }catch(e){
+          alert("Incorrect password. Please try again.");
+        }
+      }
+    }else{
+      decoded = JSON.parse(raw);
+    }
+
+    saveCurrent(decoded);
+  }catch(e){
+    console.error(e);
+    alert("Invalid or corrupted vote link.");
+  }
+}
+
+/* ===========================
+   INIT ON LOAD
+   =========================== */
+
 document.addEventListener('DOMContentLoaded',()=>{
   importVoteFromLink();
   renderCurrentCard();
-  renderPastList();
-  renderViewPage();
 });
