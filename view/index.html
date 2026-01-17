@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <link rel="icon" type="image/png" href="/votemaster/src/image.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vote Master — View</title>
+  <link rel="stylesheet" href="/votemaster/src/styles.css">
+</head>
+
+<body>
+<div class="app">
+  <div class="card header">
+    <div>
+      <div class="title" id="viewTitle">View</div>
+      <div class="subtitle">Results</div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+  </div>
+
+  <div id="spinner" class="card" style="display:none;text-align:center;">
+    ⏳ loading…
+  </div>
+
+  <div id="viewCard" class="card"></div>
+</div>
+
+<script src="/votemaster/src/script.js"></script>
+<script>
+loadViewVote();
+setInterval(()=>fetch(BACKEND_URL+"/ping",{method:"POST"}).catch(()=>{}),30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <link rel="icon" type="image/png" href="/votemaster/src/image.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vote Master — Current Vote</title>
+  <link rel="stylesheet" href="/votemaster/src/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+<div class="app">
+  <div class="card header">
+    <div>
+      <div class="title">Current Vote</div>
+      <div class="subtitle">Cast votes</div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+  </div>
+
+  <div id="spinner" class="card" style="display:none;text-align:center;">
+    ⏳ syncing…
+  </div>
+
+  <div id="currentCard" class="card"></div>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn btn-primary" onclick="showShareLinkPopup()">Get Share Link</button>
+      <a href="/votemaster/"><button class="btn btn-ghost">Cancel</button></a>
+    </div>
+  </div>
+</div>
+
+<script src="/votemaster/src/script.js"></script>
+<script>
+/* background keep-alive */
+setInterval(()=>fetch(BACKEND_URL+"/ping",{method:"POST"}).catch(()=>{}),30000);
+</script>
+</body>
+</html>

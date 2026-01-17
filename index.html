@@ -1,45 +1,43 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
-  <link rel="icon" type="image/png" href="image.png">
+  <link rel="icon" type="image/png" href="/votemaster/src/image.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Vote Master — Home</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/votemaster/src/styles.css">
 </head>
 <body>
-  <div class="app">
-    <div class="card header">
-      <div>
-        <div class="title">Voting App</div>
-        <div class="subtitle">Home</div>
-      </div>
-      <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+<div class="app">
+  <div class="card header">
+    <div>
+      <div class="title">Voting App</div>
+      <div class="subtitle">Home</div>
     </div>
-    <div class="card">
-      <div class="row">
-        <button class="btn btn-primary" onclick="go('create.html')">Create Vote</button>
-        <button class="btn btn-primary" onclick="go('current.html')">Current Vote</button>
-        <button class="btn btn-primary" onclick="go('past.html')">Past Votes</button>
-      </div>
+    <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <a href="/votemaster/create/"><button class="btn btn-primary">create vote</button></a>
+      <a href="/votemaster/current/"><button class="btn btn-primary">current vote</button></a>
+      <a href="/votemaster/past/"><button class="btn btn-primary">past votes</button></a>
     </div>
-    <div class="card">
-  <button
-    class="btn btn-primary"
-    onclick="window.open(
-      'https://bearbunch.github.io/Contact?return=https://bearbunch.github.io/votemaster',
-      '_blank',
-      'noopener,noreferrer'
-    )"
-  >
-    Contact Me
-  </button>
+  </div>
+
+  <div class="card">
+    <a href="/Contact/?return=https://bearbunch.github.io/votemaster">
+      <button class="btn btn-primary">Contact us</button>
+    </a>
+  </div>
 </div>
 
-  </div>
-  <script src="script.js"></script>
+<script src="/votemaster/src/script.js"></script>
+<script>
+/* ===== Render keep-alive ===== */
+setInterval(()=>{
+  fetch(BACKEND_URL+"/ping",{method:"POST"}).catch(()=>{});
+},30000);
+</script>
 </body>
 </html>
-
-
-

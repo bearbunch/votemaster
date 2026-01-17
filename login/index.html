@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <link rel="icon" type="image/png" href="/votemaster/src/image.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vote Master — Login</title>
+  <link rel="stylesheet" href="/votemaster/src/styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="card header">
+    <div>
+      <div class="title">Vote Master</div>
+      <div class="subtitle">Login / Register / Admin</div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <div class="title">Login</div>
+    <input id="loginUser" placeholder="Username">
+    <input id="loginPass" type="password" placeholder="Password">
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <div class="subtitle" id="loginMsg"></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="card" id="registerCard">
+    <div class="title">Register</div>
+    <input id="regUser" placeholder="Username">
+    <input id="regEmail" placeholder="Email">
+    <input id="regPass" type="password" placeholder="Password or ADMINKEY,password">
+    <button class="btn btn-primary" onclick="register()">Register</button>
+    <div class="subtitle" id="regMsg"></div>
+  </div>
+
+  <!-- ADMIN DASHBOARD -->
+  <div class="card" id="adminCard" style="display:none">
+    <div class="title">Admin Dashboard</div>
+    <div class="subtitle">Manage accounts</div>
+    <div class="list" id="adminUsers"></div>
+    <button class="btn btn-ghost" onclick="logout()">Logout</button>
+  </div>
+
+</div>
+
+<script src="votemaster/src/script.js"></script>
+<script>
+  const API = "https://bearbunch-backend-1.onrender.com";
+
+/* ================= AUTO LOGIN ================= */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  console.log("🔁 Token found, attempting auto-login");
+
+  try {
+    const res = await fetch(`${API}/admin/users`, {
+      headers: {
+        "Authorization": token
+      }
+    });
+
+    if (res.status === 401) throw new Error("Invalid token");
+
+ //confirm the new route
+    const users = await res.json();
+    console.log("✅ Auto-login success");
+
+    localStorage.setItem("role", "admin");
+    showAdminDashboard(users);
+
+  } catch (err) {
+    console.warn("❌ Auto-login failed, clearing token");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+  }
+});
+
+/* ================= LOGIN ================= */
+
+async function login() {
+  const username = document.getElementById("loginuser").value;
+  const password = document.getElementById("loginpass").value;
+
+  try {
+    const res = await fetch(`${API}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("username", data.username);
+
+    console.log("✅ Login success");
+
+    if (data.role === "admin") {
+      loadAdmin();
+    } else {
+      window.location.href = "/view/index.html";
+    }
+
+  } catch (err) {
+    alert(err.message || "Login failed");
+  }
+}
+
+/* ================= REGISTER ================= */
+
+async function register() {
+  const username = document.getElementById("reg-username").value;
+  const email = document.getElementById("reg-email").value;
+  const password = document.getElementById("reg-password").value;
+
+  try {
+    const res = await fetch(`${API}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    alert("Registered successfully. Please login.");
+
+  } catch (err) {
+    alert(err.message || "Register failed");
+  }
+}
+
+/* ================= ADMIN ================= */
+
+async function loadAdmin() {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${API}/admin/users`, {
+    headers: { Authorization: token }
+  });
+
+  const users = await res.json();
+  showAdminDashboard(users);
+}
+
+function showAdminDashboard(users) {
+  document.getElementById("auth-section").style.display = "none";
+  const dash = document.getElementById("admin-dashboard");
+  dash.style.display = "block";
+
+  const list = document.getElementById("user-list");
+  list.innerHTML = "";
+
+  users.forEach(u => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <b>${u.username}</b> (${u.role})
+      <button onclick="terminateUser('${u.username}')">Terminate</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+async function terminateUser(username) {
+  if (!confirm(`Terminate ${username}?`)) return;
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${API}/admin/terminate-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({ username })
+  });
+
+  const data = await res.json();
+  if (!res.ok) return alert(data.error);
+
+  loadAdmin();
+}
+
+/* ================= LOGOUT ================= */
+
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+/* ================= KEEP RENDER AWAKE ================= */
+
+setInterval(() => {
+  fetch(`${API}/ping`, { method: "POST" }).catch(() => {});
+}, 30000);
+
+const BACKEND_URL = "https://bearbunch-backend-1.onrender.com";
+let token = null;
+
+function toggleTheme(){
+  const h=document.documentElement;
+  const t=h.getAttribute("data-theme")==="dark"?"light":"dark";
+  h.setAttribute("data-theme",t);
+  localStorage.setItem("v_theme",t);
+}
+if(localStorage.getItem("v_theme"))
+  document.documentElement.setAttribute("data-theme",localStorage.getItem("v_theme"));
+
+async function login(){
+  const username=loginUser.value.trim();
+  const password=loginPass.value.trim();
+  loginMsg.textContent="Logging in...";
+  try{
+    const r=await fetch(BACKEND_URL+"/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password})
+    });
+    const d=await r.json();
+    if(!r.ok) throw d.error;
+    token=d.token;
+    loginMsg.textContent="Logged in as "+d.username;
+    if(d.role==="admin") loadAdmin();
+  }catch(e){
+    loginMsg.textContent=e;
+  }
+}
+
+async function register(){
+  regMsg.textContent="Registering...";
+  try{
+    const r=await fetch(BACKEND_URL+"/register",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        username:regUser.value.trim(),
+        email:regEmail.value.trim(),
+        password:regPass.value.trim()
+      })
+    });
+    const d=await r.json();
+    if(!r.ok) throw d.error;
+    regMsg.textContent="Registered. You can log in.";
+  }catch(e){
+    regMsg.textContent=e;
+  }
+}
+
+async function loadAdmin(){
+  loginCard.style.display="none";
+  registerCard.style.display="none";
+  adminCard.style.display="block";
+  adminUsers.innerHTML="Loading users...";
+  const r=await fetch(BACKEND_URL+"/admin/users",{
+    headers:{Authorization:token}
+  });
+  const users=await r.json();
+  adminUsers.innerHTML=users.map(u=>`
+    <div class="item-row">
+      <div>
+        <b>${u.username}</b><br>
+        <span class="tiny">${u.email} — ${u.role}</span>
+      </div>
+      <div>
+        <button class="btn btn-ghost small" onclick="resetPass('${u.username}')">Reset</button>
+        <button class="btn btn-ghost small" onclick="terminateUser('${u.username}')">Terminate</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function resetPass(user){
+  const p=prompt("New password for "+user);
+  if(!p) return;
+  await fetch(BACKEND_URL+"/admin/reset-password",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:token
+    },
+    body:JSON.stringify({username:user,newPassword:p})
+  });
+  alert("Password reset");
+}
+
+async function terminateUser(user){
+  if(!confirm("DELETE "+user+" permanently?")) return;
+  const r=await fetch(BACKEND_URL+"/admin/terminate-user",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:token
+    },
+    body:JSON.stringify({username:user})
+  });
+  const d=await r.json();
+  if(d.success){
+    alert("User terminated");
+    loadAdmin();
+  }else{
+    alert(d.error);
+  }
+}
+
+async function logout(){
+  await fetch(BACKEND_URL+"/logout",{method:"POST",headers:{Authorization:token}});
+  location.reload();
+}
+</script>
+</body>
+</html>

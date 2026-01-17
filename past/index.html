@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <link rel="icon" type="image/png" href="/votemaster/src/image.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vote Master — Past</title>
+  <link rel="stylesheet" href="/votemaster/src/styles.css">
+</head>
+
+<body>
+<div class="app">
+  <div class="card header">
+    <div>
+      <div class="title">Past Votes</div>
+      <div class="subtitle">Saved polls</div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">💡</button>
+  </div>
+
+  <div id="spinner" class="card" style="display:none;text-align:center;">
+    ⏳ loading more…
+  </div>
+
+  <div class="card">
+    <div id="pastList" class="list"></div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn btn-ghost" onclick="clearHistory()">Clear History</button>
+      <a href="/votemaster/"><button class="btn btn-ghost">Cancel</button></a>
+    </div>
+  </div>
+</div>
+
+<script src="/votemaster/src/script.js"></script>
+<script>
+renderPastFromLocal();
+
+/* backend sync if logged in */
+if(loggedIn()){
+  document.getElementById("spinner").style.display="block";
+  fetchWithTimeout(BACKEND_URL+"/votes")
+    .then(r=>r.json())
+    .then(arr=>{
+      arr.map(decryptVote).forEach(addPastIfMissing);
+      document.getElementById("spinner").style.display="none";
+    })
+    .catch(()=>document.getElementById("spinner").style.display="none");
+}
+
+/* keep alive */
+setInterval(()=>fetch(BACKEND_URL+"/ping",{method:"POST"}).catch(()=>{}),30000);
+</script>
+</body>
+</html>
