@@ -1,13 +1,10 @@
 {
   "name": "bearbunch-backend",
   "version": "1.0.0",
-  "description": "Bearbunch backend with accounts and admin",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",
